@@ -20,13 +20,13 @@ func (s Network) ScanPort(host string) (int, bool) {
 			"Address": address,
 			"Port":    s.Port,
 		},
-	).Debug("Scanning", " ", address, s.Port)
+	).Debug()
 
 	if err != nil {
 		return 0, false
 	}
 
-	conn.Close()
+	defer conn.Close()
 
 	return s.Port, true
 

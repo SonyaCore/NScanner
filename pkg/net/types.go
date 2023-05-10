@@ -2,7 +2,8 @@ package net
 
 type Network struct {
 	Protocol string   `json:"protocol"`
-	Hostname []string `json:"hostname"`
+	Host     string   `json:"host"`
+	HostList []string `json:"list"`
 	Port     int
 	Range    int `json:"range"`
 }
@@ -10,10 +11,6 @@ type Network struct {
 type Result struct {
 	Host  string
 	Ports []int
-}
-
-type Results struct {
-	Result []Result
 }
 
 type Error struct {

@@ -8,10 +8,10 @@ import (
 	"sync"
 )
 
-func Receiver(w http.ResponseWriter, r *http.Request) {
+func ReceiverHelper(w http.ResponseWriter, r *http.Request) {
 	var Scanner Network
 	var wg sync.WaitGroup
-	//var result []int
+	var Results []Result
 
 	err := json.NewDecoder(r.Body).Decode(&Scanner)
 	if err != nil {
@@ -22,7 +22,7 @@ func Receiver(w http.ResponseWriter, r *http.Request) {
 		Scanner.Range = 2048
 	}
 
-	err = validate.ValidateRange(Scanner.Range)
+	err = validate.ValRange(Scanner.Range)
 	if err != nil {
 		_ = json.NewEncoder(w).Encode(
 			&Error{err.Error(), http.StatusFailedDependency},
@@ -30,10 +30,29 @@ func Receiver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Res := []Result{}
+	err = validate.ValProtocols(Scanner.Protocol)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(
+			&Error{err.Error(), http.StatusFailedDependency},
+		)
+		return
+	}
 
-	for _, host := range Scanner.Hostname {
-		result := Scanner.InitialScan(Scanner.Range, host, &wg)cd
+	if Scanner.Host != "" {
+		SingleScan(w, Scanner, wg)
+		return
+
+	}
+
+	if len(Scanner.HostList) >= 0 {
+		MultiScan(w, Scanner, wg, Results)
+		return
+	}
+}
+
+func MultiScan(w http.ResponseWriter, Scanner Network, wg sync.WaitGroup, Results []Result) {
+	for _, host := range Scanner.HostList {
+		result := Scanner.InitialScan(Scanner.Range, host, &wg)
 		res := Result{Host: host}
 
 		for _, x := range result {
@@ -41,9 +60,25 @@ func Receiver(w http.ResponseWriter, r *http.Request) {
 			sort.Ints(res.Ports)
 		}
 
-		Res = append(Res, res)
+		Results = append(Results, res)
 	}
 
-	str, _ := json.MarshalIndent(Res, " ", " ")
-	w.Write(str)
+	data, _ := json.MarshalIndent(Results, " ", " ")
+
+	w.Write(data)
+}
+
+func SingleScan(w http.ResponseWriter, Scanner Network, wg sync.WaitGroup) {
+	result := Scanner.InitialScan(Scanner.Range, Scanner.Host, &wg)
+
+	res := Result{Host: Scanner.Host}
+
+	for _, x := range result {
+		res.Ports = append(res.Ports, x)
+		sort.Ints(res.Ports)
+	}
+
+	data, _ := json.MarshalIndent(res, " ", " ")
+
+	w.Write(data)
 }
