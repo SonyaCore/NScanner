@@ -3,5 +3,5 @@ package net
 import "net/http"
 
 func RegisterRoutes() {
-	http.HandleFunc("/scan", ReceiverHelper)
+	http.HandleFunc("/scan", ValidateMiddleware(ReceiverHelper))
 }

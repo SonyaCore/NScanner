@@ -12,7 +12,7 @@ var maxPort = 65535
 var minPort = 0
 
 func ValRange(num int) error {
-	if num > maxPort || num <= minPort {
+	if num > maxPort || num < minPort {
 		return errors.New("Invalid port range")
 	}
 	return nil

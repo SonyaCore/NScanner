@@ -1,17 +1,14 @@
 package net
 
 import (
-	"Scanner/pkg/validate"
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"sort"
-	"sync"
 )
 
 func ReceiverHelper(w http.ResponseWriter, r *http.Request) {
 	var Scanner Network
-	var wg sync.WaitGroup
-	var Results []Result
 
 	err := json.NewDecoder(r.Body).Decode(&Scanner)
 	if err != nil {
@@ -19,40 +16,27 @@ func ReceiverHelper(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if Scanner.Range == 0 {
-		Scanner.Range = 2048
-	}
+		log.Warn("Scanner.Range is 0 setting port range to ", DefaultRange)
 
-	err = validate.ValRange(Scanner.Range)
-	if err != nil {
-		_ = json.NewEncoder(w).Encode(
-			&Error{err.Error(), http.StatusFailedDependency},
-		)
-		return
-	}
-
-	err = validate.ValProtocols(Scanner.Protocol)
-	if err != nil {
-		_ = json.NewEncoder(w).Encode(
-			&Error{err.Error(), http.StatusFailedDependency},
-		)
-		return
+		Scanner.Range = DefaultRange
 	}
 
 	if Scanner.Host != "" {
-		SingleScan(w, Scanner, wg)
+		Scanner.SingleScan(w)
 		return
 
 	}
 
 	if len(Scanner.HostList) >= 0 {
-		MultiScan(w, Scanner, wg, Results)
+		Scanner.MultiScan(w)
 		return
 	}
 }
 
-func MultiScan(w http.ResponseWriter, Scanner Network, wg sync.WaitGroup, Results []Result) {
+func (Scanner Network) MultiScan(w http.ResponseWriter) {
+	var Results []Result
 	for _, host := range Scanner.HostList {
-		result := Scanner.InitialScan(Scanner.Range, host, &wg)
+		result := Scanner.InitialScan(Scanner.Range, host)
 		res := Result{Host: host}
 
 		for _, x := range result {
@@ -68,8 +52,8 @@ func MultiScan(w http.ResponseWriter, Scanner Network, wg sync.WaitGroup, Result
 	w.Write(data)
 }
 
-func SingleScan(w http.ResponseWriter, Scanner Network, wg sync.WaitGroup) {
-	result := Scanner.InitialScan(Scanner.Range, Scanner.Host, &wg)
+func (Scanner Network) SingleScan(w http.ResponseWriter) {
+	result := Scanner.InitialScan(Scanner.Range, Scanner.Host)
 
 	res := Result{Host: Scanner.Host}
 

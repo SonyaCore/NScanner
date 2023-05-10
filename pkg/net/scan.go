@@ -4,21 +4,22 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 )
 
-func (s Network) ScanPort(host string) (int, bool) {
+const DefaultRange = 2048
+
+func (Scanner Network) ScanPort(host string) (int, bool) {
 	var conn net.Conn
 	var err error
 
-	address := host + ":" + strconv.Itoa(s.Port)
-	conn, err = net.DialTimeout(s.Protocol, address, 20*time.Second)
+	address := host + ":" + strconv.Itoa(Scanner.Port)
+	conn, err = net.DialTimeout(Scanner.Protocol, address, 20*time.Second)
 
 	log.WithFields(
 		log.Fields{
 			"Address": address,
-			"Port":    s.Port,
+			"Port":    Scanner.Port,
 		},
 	).Debug()
 
@@ -28,18 +29,18 @@ func (s Network) ScanPort(host string) (int, bool) {
 
 	defer conn.Close()
 
-	return s.Port, true
+	return Scanner.Port, true
 
 }
 
-func (s Network) InitialScan(num int, host string, wg *sync.WaitGroup) []int {
+func (Scanner Network) InitialScan(num int, host string) []int {
 	var Ports []int
 
 	for i := 1; i <= num; i++ {
-		wg.Add(1)
+		Scanner.wg.Add(1)
 		go func(port int, host string) {
-			s.Port = port
-			scanner, open := s.ScanPort(host)
+			Scanner.Port = port
+			scanner, open := Scanner.ScanPort(host)
 
 			if open {
 				log.WithFields(
@@ -51,12 +52,12 @@ func (s Network) InitialScan(num int, host string, wg *sync.WaitGroup) []int {
 
 				Ports = append(Ports, scanner)
 			}
-			wg.Done()
+			Scanner.wg.Done()
 
 		}(i, host)
 	}
 
-	wg.Wait()
+	Scanner.wg.Wait()
 
 	return Ports
 }
