@@ -4,17 +4,18 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 )
 
-const DefaultRange = 2048
+const DefaultRange = "1-2048"
 
 func (Scanner Network) ScanPort(host string) (int, bool) {
-	var conn net.Conn
+	var connection net.Conn
 	var err error
 
 	address := host + ":" + strconv.Itoa(Scanner.Port)
-	conn, err = net.DialTimeout(Scanner.Protocol, address, 20*time.Second)
+	connection, err = net.DialTimeout(Scanner.Protocol, address, 20*time.Second)
 
 	log.WithFields(
 		log.Fields{
@@ -27,22 +28,30 @@ func (Scanner Network) ScanPort(host string) (int, bool) {
 		return 0, false
 	}
 
-	defer conn.Close()
+	defer func(connection net.Conn) {
+		err := connection.Close()
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}(connection)
 
 	return Scanner.Port, true
 
 }
 
-func (Scanner Network) InitialScan(num int, host string) []int {
+func (Scanner Network) InitialScan(startRangePorts, endRangePorts int, host string) []int {
 	var Ports []int
+	mutex := &sync.Mutex{}
 
-	for i := 1; i <= num; i++ {
+	for i := startRangePorts; i <= endRangePorts; i++ {
 		Scanner.wg.Add(1)
+
 		go func(port int, host string) {
 			Scanner.Port = port
 			scanner, open := Scanner.ScanPort(host)
 
 			if open {
+
 				log.WithFields(
 					log.Fields{
 						"Address": host,
@@ -50,7 +59,10 @@ func (Scanner Network) InitialScan(num int, host string) []int {
 					},
 				).Info("Port", " ", scanner, " ", "Open")
 
+				mutex.Lock()
 				Ports = append(Ports, scanner)
+				mutex.Unlock()
+
 			}
 			Scanner.wg.Done()
 

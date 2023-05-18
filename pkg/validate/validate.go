@@ -2,6 +2,7 @@ package validate
 
 import (
 	"errors"
+	"fmt"
 )
 
 var protocols = []string{
@@ -13,7 +14,7 @@ var minPort = 0
 
 func ValRange(num int) error {
 	if num > maxPort || num < minPort {
-		return errors.New("Invalid port range")
+		return fmt.Errorf("Invalid port range %d", num)
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package net
 
 import (
+	"Scanner/pkg/util"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -15,7 +16,9 @@ func ReceiverHelper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if Scanner.Range == 0 {
+	startPort, _, _ := util.SplitPorts(Scanner.Range)
+
+	if startPort == 0 {
 		log.Warn("Scanner.Range is 0 setting port range to ", DefaultRange)
 
 		Scanner.Range = DefaultRange
@@ -35,8 +38,10 @@ func ReceiverHelper(w http.ResponseWriter, r *http.Request) {
 
 func (Scanner Network) MultiScan(w http.ResponseWriter) {
 	var Results []Result
+	startPort, endPort, _ := util.SplitPorts(Scanner.Range)
+
 	for _, host := range Scanner.HostList {
-		result := Scanner.InitialScan(Scanner.Range, host)
+		result := Scanner.InitialScan(startPort, endPort, host)
 		res := Result{Host: host}
 
 		for _, x := range result {
@@ -49,12 +54,16 @@ func (Scanner Network) MultiScan(w http.ResponseWriter) {
 
 	data, _ := json.MarshalIndent(Results, " ", " ")
 
-	w.Write(data)
+	_, err := w.Write(data)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (Scanner Network) SingleScan(w http.ResponseWriter) {
-	result := Scanner.InitialScan(Scanner.Range, Scanner.Host)
+	startPort, endPort, _ := util.SplitPorts(Scanner.Range)
 
+	result := Scanner.InitialScan(startPort, endPort, Scanner.Host)
 	res := Result{Host: Scanner.Host}
 
 	for _, x := range result {
@@ -64,5 +73,8 @@ func (Scanner Network) SingleScan(w http.ResponseWriter) {
 
 	data, _ := json.MarshalIndent(res, " ", " ")
 
-	w.Write(data)
+	_, err := w.Write(data)
+	if err != nil {
+		log.Error(err)
+	}
 }
